@@ -11,6 +11,7 @@ import util.HttpUtil;
 import java.util.*;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 
 /**
  * @BelongsProject: blogCrawler
@@ -22,7 +23,6 @@ public class BlogCrawler {
 
     Queue<String> taskList = new ArrayDeque<>();
 
-    final static Logger logger = LoggerFactory.getLogger(BlogCrawler.class);
 
     volatile HashMap<Long, Boolean> status = new HashMap<>();
 
@@ -62,57 +62,27 @@ public class BlogCrawler {
         System.out.println("🐛 爬虫启动");
 
 
-        for (int i = 0; i < 6; i++) {
+        while (taskList.size() > 0) {
+            String taskURL = taskList.poll();
             pool.execute(() -> {
+                long t = System.currentTimeMillis();
+                String realURL = "https://blog.exql.net" + taskURL;
                 status.put(Thread.currentThread().getId(), true);
-                while (true) {
-                    long t = System.currentTimeMillis();
-                    String taskURL = taskList.poll();
-                    String realURL = "https://blog.exql.net" + taskURL;
-                    if (taskURL == null) {
-                        status.put(Thread.currentThread().getId(), false);
-                        break;
-                    } else {
-                        status.put(Thread.currentThread().getId(), true);
-                        Article article = getOne(realURL);
-                        result.add(article);
-                        System.out.println("👴 已爬：" + taskURL
-                                + "，剩余：" + taskList.size()
-                                + "耗时：" + (System.currentTimeMillis() - t) + "ms"
-                                + "  " + article);
-                    }
-                }
+                Article article = getOne(realURL);
+                result.add(article);
+                System.out.println("👴 已爬：" + taskURL
+                        + "，剩余：" + taskList.size()
+                        + "耗时：" + (System.currentTimeMillis() - t) + "ms"
+                        + "  " + article);
             });
         }
 
-
+        pool.shutdown();
         try {
-            Thread.sleep(500L);
+            pool.awaitTermination(Integer.MAX_VALUE, TimeUnit.SECONDS);
         } catch (InterruptedException e) {
             e.printStackTrace();
         }
-
-        // 轮询，与子线程同步
-        boolean flag;
-        try {
-            while (true) {
-                flag = true;
-                for (long key: status.keySet()) {
-                    if (status.get(key) == Boolean.TRUE) {
-                        flag = false;
-                        break;
-                    }
-                }
-
-                if (flag) break;
-
-                Thread.sleep(1000L);
-            }
-        } catch (InterruptedException e) {
-            e.printStackTrace();
-        }
-
-        pool.shutdownNow();
         return result;
     }
 
