@@ -1,5 +1,3 @@
-import com.sun.org.slf4j.internal.Logger;
-import com.sun.org.slf4j.internal.LoggerFactory;
 import model.Article;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
@@ -21,20 +19,21 @@ import java.util.concurrent.TimeUnit;
  */
 public class BlogCrawler {
 
-    Queue<String> taskList = new ArrayDeque<>();
+    private Queue<String> taskList = new ArrayDeque<>();
 
+    private String domain = "https://blog.exql.net";
 
     volatile HashMap<Long, Boolean> status = new HashMap<>();
 
     public List<Article> getAllArticles() {
 
         // 发现文章URL
-        String baseURL = "https://blog.exql.net/page/{}/";
+        String baseURL = domain + "/page/{}/";
         int page = 1;
         while (true) {
             HttpResponse response;
             if (page == 1) {
-                response = HttpUtil.doGet("https://blog.exql.net/");
+                response = HttpUtil.doGet(domain);
             } else {
                 response = HttpUtil.doGet(baseURL.replace("{}", Integer.toString(page)));
             }
@@ -66,7 +65,7 @@ public class BlogCrawler {
             String taskURL = taskList.poll();
             pool.execute(() -> {
                 long t = System.currentTimeMillis();
-                String realURL = "https://blog.exql.net" + taskURL;
+                String realURL = domain + taskURL;
                 status.put(Thread.currentThread().getId(), true);
                 Article article = getOne(realURL);
                 result.add(article);
